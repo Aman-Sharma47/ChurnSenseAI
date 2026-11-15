@@ -21,3 +21,4 @@ models/retrain_log.jsonl
 node_modules/
 .ipynb_checkpoints/
 work/**/tmp/
+.env

@@ -174,9 +174,25 @@ def _finish(res, question, use_llm):
             pass
     return res
 
-
+#--------------------------------------------------------------------
+def _context(df, schema, meta):
+    seg = df["risk_segment"].value_counts().to_dict()
+    lines = [
+        f"Customers loaded: {len(df)}",
+        f"Average predicted churn probability: {df['churn_probability'].mean():.1%}",
+        f"Customers per risk band: {seg}",
+        "Risk bands: Low under 15%, Medium 15-30%, High 30-60%, Critical 60% and above.",
+        f"Target column: {schema.get('target')}",
+    ]
+    if meta:
+        t = meta["test_at_tuned"]
+        lines += [f"Model: {meta['best_model']}", f"Test ROC-AUC: {t['roc_auc']}",
+                  f"Test recall: {t['recall']}", f"Test precision: {t['precision']}",
+                  f"Cut-off: {meta['threshold']:.2f}"]
+    return "\n".join(lines)
 # ------------------------------------------------------------------ router
-def answer(message, df, schema, explainer, use_llm=True):
+
+def answer(message, df, schema, explainer, use_llm=True, meta=None):
     m = message.lower()
     id_col = _id_column(df, schema)
     idx = _find_customer(message, df, id_col) if id_col else None
@@ -194,4 +210,11 @@ def answer(message, df, schema, explainer, use_llm=True):
         res = _summary(df)
     else:
         res = {"intent": "help", "text": HELP_TEXT, "table": []}
+        res["answer"], res["source"] = res["text"], "template"
+        if use_llm:
+            from core.qa import general_answer
+            text, src = general_answer(message, _context(df, schema, meta))
+            if text:
+                res.update(intent="general", text=text, answer=text, source=src)
+        return res
     return _finish(res, message, use_llm)

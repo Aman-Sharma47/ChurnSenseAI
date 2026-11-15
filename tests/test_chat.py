@@ -69,3 +69,10 @@ def test_guard_rejects_wrong_qualifier_and_summary_has_note():
     assert _grounded("Tenure is 3, which raises the risk.", facts, "why")
     df, s = make()
     assert answer("portfolio summary", df, s, None, use_llm=False)["note"]
+
+def test_general_question_goes_to_qa(monkeypatch):
+    import core.qa as qa
+    monkeypatch.setattr(qa, "general_answer", lambda q, c: ("Churn means a customer leaves.", "test"))
+    df, s = make()
+    r = answer("what is the probability of churn?", df, s, None, use_llm=True)
+    assert r["intent"] == "general" and "leaves" in r["answer"]

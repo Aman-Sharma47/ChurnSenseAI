@@ -10,6 +10,10 @@ import io
 import threading
 import uuid
 
+from pathlib import Path
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
+
 import pandas as pd
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
@@ -298,7 +302,7 @@ def chat(model_id: str, req: ChatRequest):
         ex = _explainer(model_id)
     except FileNotFoundError:
         ex = None
-    return chat_answer(req.message, PORTFOLIOS[model_id], meta["schema"], ex)
+    return chat_answer(req.message, PORTFOLIOS[model_id], meta["schema"], ex, meta=meta)
 
 @app.get("/models/{model_id}/cost")
 def cost(model_id: str, value: float = 500, offer_cost: float = 50, success_rate: float = 1.0):
@@ -324,3 +328,13 @@ def whatif(model_id: str, req: WhatIfRequest):
         raise HTTPException(404, "Model not found")
     except ValueError as exc:
         raise HTTPException(422, str(exc))
+
+FRONTEND = Path(__file__).resolve().parents[1] / "frontend"
+
+
+@app.get("/", include_in_schema=False)
+def home():
+    return RedirectResponse("/ui/")
+
+
+app.mount("/ui", StaticFiles(directory=FRONTEND, html=True), name="ui")
